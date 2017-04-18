@@ -2,37 +2,92 @@ import { Injectable } from '@angular/core';
 import { Events } from 'ionic-angular';
 import { Storage } from '@ionic/storage';
 import { InAppBrowser } from '@ionic-native/in-app-browser';
+import { Geolocation } from '@ionic-native/geolocation';
+import { UntappdService } from './untappd-service';
 
+export class User {
+    name: string;
+    email: string;
+    authToken: string;
+
+    constructor(name: string, email: string, authToken: string) {
+        this.name = name;
+        this.email = email;
+        this.authToken = authToken;
+    }
+}
 
 @Injectable()
 export class UserService {
-    authToken: string;
-
+    currentUser: User;
     HAS_LOGGED_IN = 'hasLoggedIn';
 
     constructor(
-        public events: Events,
-        public storage: Storage
+        private events: Events,
+        private storage: Storage,
+        private geo: Geolocation,
+        private untappd: UntappdService
     ) {
         // NoOp
     }
 
-    public login(): void {
+    public login(): Promise<any> {
+        const self = this;
 
-        this.untappdLogin().then(() => {
-            this.storage.set(this.HAS_LOGGED_IN, true);
-            this.events.publish('user:login');
-        }).catch(() => {
-            this.events.publish('user:login-error');
+        return new Promise(function (resolve, reject) {
+
+            self.untappdLogin().then((authToken) => {
+
+                self.untappd.setAccessToken(authToken);
+
+                self.untappd.getMyInfo().subscribe((untappdUser) => {
+                    self.currentUser = new User(untappdUser.response.user.user_name, untappdUser.response.user.settings.email_address, authToken);
+                    self.storage.set("currentUser", self.currentUser);
+                    self.storage.set(self.HAS_LOGGED_IN, true);
+                    self.events.publish('user:login');
+
+                    resolve(true);
+                });
+
+            }).catch(() => {
+
+                self.events.publish('user:login-error');
+                
+                reject();
+
+            });
+
+        });
+    }
+
+    public loginBrowser(): Promise<any> {
+        const self = this;
+
+        self.untappd.setAccessToken("81AB43AA4432874575EF098E181471B1739FFED4");
+
+        return new Promise(function (resolve, reject) {
+
+            self.untappd.getMyInfo().subscribe((untappdUser) => {
+                console.log("untappdUser:", untappdUser);
+
+                self.currentUser = new User(untappdUser.response.user.user_name, untappdUser.response.user.settings.email_address, "81AB43AA4432874575EF098E181471B1739FFED4");
+                self.storage.set("currentUser", self.currentUser);
+                self.storage.set(self.HAS_LOGGED_IN, true);
+
+                self.events.publish('user:login');
+
+                resolve();
+            });
         });
 
     }
 
     private untappdLogin(): Promise<any> {
+
         return new Promise(function (resolve, reject) {
             //81AB43AA4432874575EF098E181471B1739FFED4
             //81AB43AA4432874575EF098E181471B1739FFED4
-            const url = `https://untappd.com/oauth/authenticate/?client_id=${'066B2A1F914F9DAED8DD3DFB49B2D6D77CF796C5'}&response_type=token&redirect_url=http://localhost/callback`;
+            const url = `https://untappd.com/oauth/authenticate/?client_id=${'066B2A1F914F9DAED8DD3DFB49B2D6D77CF796C5'}&response_type=token&redirect_url=http://localhost:8000/callback`;
 
             const inAppBrowser: InAppBrowser = new InAppBrowser();
 
@@ -41,8 +96,9 @@ export class UserService {
             const sub = browser
                 .on("loadstart").subscribe((event) => {
                     //this.dialogs.alert(event.url);
+                    console.log("event.url: ", event.url);
 
-                    if ((event.url).indexOf("http://localhost/callback") === 0) {
+                    if ((event.url).indexOf("http://localhost:8000/callback") === 0) {
 
                         sub.unsubscribe();
                         browser.close();
@@ -55,9 +111,10 @@ export class UserService {
                         }
 
                         if (parsedResponse["access_token"] !== undefined && parsedResponse["access_token"] !== null) {
+                            //this.setUserToken(parsedResponse["access_token"]);
                             resolve(parsedResponse["access_token"]);
                         } else {
-                            reject("No Token Found");
+                            reject(null);
                         }
 
                     }
@@ -70,6 +127,12 @@ export class UserService {
                     console.log("success");
                 });
 
+        });
+    }
+
+    public getCurrentUser(): Promise<User> {
+        return this.storage.get("currentUser").then((user: User) => {
+            return user;
         });
     }
 
@@ -105,6 +168,19 @@ export class UserService {
             return value === true;
         });
     };
+
+    userLocation(): Promise<any> {
+        return this.storage.get("userLocation").then((loc) => {
+            if (loc === null) {
+                this.geo.getCurrentPosition().then((resp) => {
+                    const latLng = [resp.coords.latitude, resp.coords.longitude];
+                    this.storage.set("userLocation", latLng);
+                    return latLng;
+                });
+            }
+            return loc;
+        });
+    }
 
 
 }

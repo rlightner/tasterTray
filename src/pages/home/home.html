@@ -1,24 +1,34 @@
 <ion-header>
-  <ion-navbar>
-    <button ion-button menuToggle>
+    <ion-navbar color="primary">
+        <button ion-button menuToggle>
       <ion-icon name="menu"></ion-icon>
     </button>
-    <ion-title>Home</ion-title>
-  </ion-navbar>
+        <ion-title>Taster Tray</ion-title>
+    </ion-navbar>
 </ion-header>
 
 <ion-content padding>
-  <h3>Untappd Taster Tray</h3>
-  
-  <ion-list>
-    <ion-item ion-item *ngFor="let item of items">
-      <h2>Finn</h2>
-      <h3>Don't Know What To Do!</h3>
-      <p>I've had a pretty messed up day. If we just...</p>
-    </ion-item>
-  </ion-list>
 
+    <ion-refresher (ionRefresh)="doRefresh($event)">
+        <ion-refresher-content></ion-refresher-content>
+    </ion-refresher>
 
-  <button ion-button (click)="logIn()">Link Untappd</button>
+    <h3>Latest Activity</h3>
+
+    <ion-list>
+        <ion-item ion-item *ngFor="let checkin of checkins">
+            <ion-avatar item-left>
+                <img src="{{ checkin.beer.beer_label }}">
+            </ion-avatar>
+            <h2>{{ checkin.beer.beer_name }}</h2>
+            <h3>{{ checkin.brewery.brewery_name }}</h3>
+            <span style="float:right;">{{ checkin.rating_score }}</span>
+            <rating [(ngModel)]="checkin.rating_score" readOnly="true" max="5" emptyStarIconName="star-outline" halfStarIconName="star-half" starIconName="star" nullable="false"></rating>
+        </ion-item>
+    </ion-list>
+
+    <ion-infinite-scroll (ionInfinite)="loadMoreCheckins($event)">
+        <ion-infinite-scroll-content></ion-infinite-scroll-content>
+    </ion-infinite-scroll>
 
 </ion-content>

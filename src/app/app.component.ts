@@ -55,7 +55,11 @@ export class TasterTray {
     public geolocation: Geolocation
   ) {
 
-    this.rootPage = HomePage;
+
+
+
+    //this.rootPage = LoginPage;
+
     //this.initializeApp();
 
     // used for an example of ngFor and navigation
@@ -64,13 +68,25 @@ export class TasterTray {
     //   { title: 'List', component: ListPage }
     // ];
 
-    this.geolocation.getCurrentPosition().then((resp) => {
- // resp.coords.latitude
- // resp.coords.longitude
-}).catch((error) => {
-  console.log('Error getting location', error);
-});
-    
+    user.hasLoggedIn().then((u) => {
+      if (u === true) {
+
+        //user.userLocation().then((loc) => {
+
+          this.rootPage = HomePage;
+
+        //});
+
+      } else {
+
+        this.rootPage = LoginPage;
+
+      }
+    })
+      .catch((error) => {
+        console.log('Error getting location', error);
+      });
+
     this.user.hasLoggedIn().then((hasLoggedIn) => {
       this.enableMenu(hasLoggedIn === true);
     });
